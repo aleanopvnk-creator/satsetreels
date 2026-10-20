@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Download,
   Clipboard,
@@ -77,6 +78,7 @@ export interface HomePageClientProps {
 }
 
 export default function HomePageClient({ initialLang = "id" }: HomePageClientProps) {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,6 +288,7 @@ export default function HomePageClient({ initialLang = "id" }: HomePageClientPro
     } catch {
       // ignore
     }
+    router.refresh();
   };
 
   // Install PWA Handler
