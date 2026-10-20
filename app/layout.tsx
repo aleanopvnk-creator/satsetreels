@@ -124,6 +124,13 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
+                  var savedLang = localStorage.getItem('satsetreels_lang') || localStorage.getItem('reelsnap_lang');
+                  if (savedLang) {
+                    document.documentElement.setAttribute('lang', savedLang);
+                    if (!document.cookie.includes('satsetreels_lang=' + savedLang)) {
+                      document.cookie = 'satsetreels_lang=' + savedLang + '; path=/; max-age=31536000; SameSite=Lax';
+                    }
+                  }
                   var saved = localStorage.getItem('satsetreels_theme') || localStorage.getItem('reelsnap_theme');
                   var isLight = saved === 'light';
                   var d = document.documentElement;
