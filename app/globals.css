@@ -47,7 +47,14 @@ body {
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Smooth transition ONLY when user explicitly toggles theme */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *:before,
+html.theme-transitioning *:after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
 }
 
 /* Instagram Signature Gradient (Subtle & refined, not overly neon) */

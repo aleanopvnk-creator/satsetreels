@@ -4,7 +4,10 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#09090b",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -111,7 +114,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" className="dark" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/icon.png?v=4" type="image/png" sizes="any" />
         <link rel="shortcut icon" href="/favicon.ico?v=4" />
@@ -119,18 +122,28 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              try {
-                var saved = localStorage.getItem('satsetreels_theme') || localStorage.getItem('reelsnap_theme');
-                if (saved === 'light') {
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.classList.add('light');
-                  document.documentElement.setAttribute('data-theme', 'light');
-                } else {
-                  document.documentElement.classList.remove('light');
-                  document.documentElement.classList.add('dark');
-                  document.documentElement.setAttribute('data-theme', 'dark');
-                }
-              } catch (e) {}
+              (function() {
+                try {
+                  var saved = localStorage.getItem('satsetreels_theme') || localStorage.getItem('reelsnap_theme');
+                  var isLight = saved === 'light';
+                  var d = document.documentElement;
+                  if (isLight) {
+                    d.classList.remove('dark');
+                    d.classList.add('light');
+                    d.setAttribute('data-theme', 'light');
+                    d.style.colorScheme = 'light';
+                  } else {
+                    d.classList.remove('light');
+                    d.classList.add('dark');
+                    d.setAttribute('data-theme', 'dark');
+                    d.style.colorScheme = 'dark';
+                  }
+                  var meta = document.querySelector('meta[name="theme-color"]');
+                  if (meta) {
+                    meta.setAttribute('content', isLight ? '#f8fafc' : '#09090b');
+                  }
+                } catch (e) {}
+              })();
             `,
           }}
         />

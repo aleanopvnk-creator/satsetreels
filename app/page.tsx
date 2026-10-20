@@ -207,34 +207,27 @@ export default function HomePage() {
 
   // Load Saved Preferences (Theme, Language, History) & PWA Listeners
   useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        const savedLang = (localStorage.getItem("satsetreels_lang") || localStorage.getItem("reelsnap_lang")) as Language | null;
-        if (savedLang === "id" || savedLang === "en") {
-          setLang(savedLang);
-        }
-
-        const savedTheme = (localStorage.getItem("satsetreels_theme") || localStorage.getItem("reelsnap_theme")) as "dark" | "light" | null;
-        if (savedTheme === "light" || savedTheme === "dark") {
-          setTheme(savedTheme);
-          if (typeof document !== "undefined") {
-            document.documentElement.classList.remove("dark", "light");
-            document.documentElement.classList.add(savedTheme);
-            document.documentElement.setAttribute("data-theme", savedTheme);
-          }
-        }
-
-        const savedHistory = localStorage.getItem("satsetreels_download_history") || localStorage.getItem("reelsnap_download_history");
-        if (savedHistory) {
-          const parsed = JSON.parse(savedHistory);
-          if (Array.isArray(parsed)) {
-            setHistory(parsed.slice(0, 6));
-          }
-        }
-      } catch {
-        // ignore storage errors
+    try {
+      const savedLang = (localStorage.getItem("satsetreels_lang") || localStorage.getItem("reelsnap_lang")) as Language | null;
+      if (savedLang === "id" || savedLang === "en") {
+        setLang(savedLang);
       }
-    }, 50);
+
+      const savedTheme = (localStorage.getItem("satsetreels_theme") || localStorage.getItem("reelsnap_theme")) as "dark" | "light" | null;
+      if (savedTheme === "light" || savedTheme === "dark") {
+        setTheme(savedTheme);
+      }
+
+      const savedHistory = localStorage.getItem("satsetreels_download_history") || localStorage.getItem("reelsnap_download_history");
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) {
+          setHistory(parsed.slice(0, 6));
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -244,31 +237,34 @@ export default function HomePage() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
   }, []);
 
   // Theme Toggle Handler
   const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
+    const isCurrentDark = document.documentElement.classList.contains("dark");
+    const newTheme = isCurrentDark ? "light" : "dark";
+    
+    document.documentElement.classList.add("theme-transitioning");
     setTheme(newTheme);
     if (typeof document !== "undefined") {
-      if (newTheme === "light") {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.classList.add("light");
-        document.documentElement.setAttribute("data-theme", "light");
-      } else {
-        document.documentElement.classList.remove("light");
-        document.documentElement.classList.add("dark");
-        document.documentElement.setAttribute("data-theme", "dark");
-      }
+      const d = document.documentElement;
+      d.classList.remove("dark", "light");
+      d.classList.add(newTheme);
+      d.setAttribute("data-theme", newTheme);
+      d.style.colorScheme = newTheme;
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) metaTheme.setAttribute("content", newTheme === "light" ? "#f8fafc" : "#09090b");
     }
     try {
       localStorage.setItem("satsetreels_theme", newTheme);
     } catch {
       // ignore
     }
+    setTimeout(() => {
+      document.documentElement.classList.remove("theme-transitioning");
+    }, 250);
   };
 
   // Language Toggle Handler
@@ -578,20 +574,11 @@ export default function HomePage() {
 
   return (
     <div
-      data-theme={theme}
-      className={`min-h-screen flex flex-col justify-between ${
-        theme === "light"
-          ? "bg-slate-50 text-slate-950 light"
-          : "bg-zinc-950 text-zinc-100 dark"
-      } overflow-x-hidden selection:bg-pink-500 selection:text-white transition-colors duration-200`}
+      className="min-h-screen flex flex-col justify-between bg-slate-50 dark:bg-zinc-950 text-slate-950 dark:text-zinc-100 overflow-x-hidden selection:bg-pink-500 selection:text-white"
     >
       {/* Top Header */}
       <header
-        className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
-          theme === "light"
-            ? "bg-white/95 border-slate-200 shadow-sm"
-            : "bg-zinc-950/85 border-zinc-800/80"
-        }`}
+        className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/95 dark:bg-zinc-950/85 border-slate-200 dark:border-zinc-800/80 shadow-xs dark:shadow-none"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-2.5">
@@ -678,14 +665,12 @@ export default function HomePage() {
             <button
               type="button"
               onClick={toggleTheme}
+              aria-label="Ganti Tema"
               title={theme === "dark" ? "Mode Terang (Light Mode)" : "Mode Gelap (Dark Mode)"}
               className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
             >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4 text-zinc-300" />
-              ) : (
-                <Moon className="w-4 h-4 text-zinc-700" />
-              )}
+              <Sun className="w-4 h-4 text-zinc-300 hidden dark:block" />
+              <Moon className="w-4 h-4 text-zinc-700 block dark:hidden" />
             </button>
 
             {/* Mobile Navigation Drawer Toggle */}
@@ -707,11 +692,7 @@ export default function HomePage() {
         {/* Mobile Navigation Drawer Dropdown */}
         {mobileMenuOpen && (
           <div
-            className={`md:hidden border-b px-3 py-2.5 space-y-1 transition-all ${
-              theme === "light"
-                ? "bg-white border-slate-200 shadow-md"
-                : "bg-zinc-950 border-zinc-800 shadow-lg"
-            }`}
+            className="md:hidden border-b px-3 py-2.5 space-y-1 bg-white dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 shadow-md dark:shadow-lg"
           >
             <div className="grid grid-cols-1 gap-0.5">
               <button
@@ -720,11 +701,7 @@ export default function HomePage() {
                   scrollToSection("hero");
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
-                  theme === "light"
-                    ? "hover:bg-slate-100 text-slate-800"
-                    : "hover:bg-zinc-900 text-zinc-200"
-                }`}
+                className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-800 dark:text-zinc-200"
               >
                 <span>{t.navbar.home}</span>
               </button>
@@ -734,11 +711,7 @@ export default function HomePage() {
                   scrollToSection("how-to");
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
-                  theme === "light"
-                    ? "hover:bg-slate-100 text-slate-800"
-                    : "hover:bg-zinc-900 text-zinc-200"
-                }`}
+                className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-800 dark:text-zinc-200"
               >
                 <span>{t.navbar.howTo}</span>
               </button>
@@ -748,11 +721,7 @@ export default function HomePage() {
                   scrollToSection("features");
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
-                  theme === "light"
-                    ? "hover:bg-slate-100 text-slate-800"
-                    : "hover:bg-zinc-900 text-zinc-200"
-                }`}
+                className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-800 dark:text-zinc-200"
               >
                 <span>{t.navbar.features}</span>
               </button>
@@ -762,11 +731,7 @@ export default function HomePage() {
                   scrollToSection("faq");
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
-                  theme === "light"
-                    ? "hover:bg-slate-100 text-slate-800"
-                    : "hover:bg-zinc-900 text-zinc-200"
-                }`}
+                className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-800 dark:text-zinc-200"
               >
                 <span>{t.navbar.faq}</span>
               </button>
@@ -776,11 +741,7 @@ export default function HomePage() {
                   scrollToSection("about");
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
-                  theme === "light"
-                    ? "hover:bg-slate-100 text-slate-800"
-                    : "hover:bg-zinc-900 text-zinc-200"
-                }`}
+                className="w-full flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-800 dark:text-zinc-200"
               >
                 <span>{t.navbar.about}</span>
               </button>
@@ -813,9 +774,8 @@ export default function HomePage() {
         <section id="hero" className="relative pt-6 pb-4 sm:pt-10 sm:pb-8 px-4 sm:px-6 scroll-mt-20">
           <div className="relative max-w-3xl mx-auto text-center">
             {/* Tag Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800 bg-slate-100/80 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 text-xs font-medium mb-3.5 sm:mb-4 select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span>{t.hero.badge}</span>
+            <div className="inline-flex items-center px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800 bg-slate-100/80 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 text-xs font-medium mb-3.5 sm:mb-4 select-none max-w-full">
+              <span className="truncate sm:whitespace-normal">{t.hero.badge}</span>
             </div>
 
             {/* Main Headline */}
@@ -904,9 +864,7 @@ export default function HomePage() {
                 className={`rounded-2xl border p-1.5 sm:p-2 transition-all ${
                   isDragging
                     ? "border-pink-500 bg-pink-500/5 ring-2 ring-pink-500/20"
-                    : theme === "light"
-                    ? "bg-white border-slate-300 shadow-sm focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-300/40"
-                    : "bg-zinc-900/90 border-zinc-800 focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-zinc-700/40"
+                    : "bg-white dark:bg-zinc-900/90 border-slate-300 dark:border-zinc-800 shadow-xs focus-within:border-slate-400 dark:focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-slate-300/40 dark:focus-within:ring-zinc-700/40"
                 }`}
               >
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -926,11 +884,7 @@ export default function HomePage() {
                         }
                       }}
                       placeholder={t.categories?.placeholders?.[activeCategory] || t.hero.placeholder}
-                      className={`w-full h-11 sm:h-12 pl-3.5 pr-22 sm:pr-24 text-base sm:text-sm bg-transparent font-normal focus:outline-none ${
-                        theme === "light"
-                          ? "text-slate-900 placeholder:text-slate-400 font-normal"
-                          : "text-zinc-100 placeholder:text-zinc-500 font-normal"
-                      } placeholder:text-xs sm:placeholder:text-sm`}
+                      className="w-full h-11 sm:h-12 pl-3.5 pr-22 sm:pr-24 text-base sm:text-sm bg-transparent font-normal focus:outline-none text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 placeholder:text-xs sm:placeholder:text-sm"
                       disabled={isLoading}
                       required
                     />
@@ -994,18 +948,14 @@ export default function HomePage() {
                 <div
                   className={`mt-4 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm flex items-start gap-3 text-left transition-all animate-in fade-in ${
                     mismatchSuggestion
-                      ? theme === "light"
-                        ? "bg-amber-50 border border-amber-200 text-amber-900 shadow-sm"
-                        : "bg-amber-950/40 border border-amber-800/60 text-amber-200 shadow-sm"
+                      ? "bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 shadow-xs"
                       : "bg-red-950/40 border border-red-900/60 text-red-300"
                   }`}
                 >
                   <AlertCircle
                     className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 mt-0.5 ${
                       mismatchSuggestion
-                        ? theme === "light"
-                          ? "text-amber-600"
-                          : "text-amber-400"
+                        ? "text-amber-600 dark:text-amber-400"
                         : "text-red-400"
                     }`}
                   />
@@ -1013,9 +963,7 @@ export default function HomePage() {
                     <p
                       className={`font-semibold text-xs sm:text-sm ${
                         mismatchSuggestion
-                          ? theme === "light"
-                            ? "text-amber-900"
-                            : "text-amber-200"
+                          ? "text-amber-900 dark:text-amber-200"
                           : "text-red-200"
                       }`}
                     >
@@ -1024,9 +972,7 @@ export default function HomePage() {
                     <p
                       className={`mt-1 leading-relaxed text-[11px] sm:text-xs ${
                         mismatchSuggestion
-                          ? theme === "light"
-                            ? "text-amber-800"
-                            : "text-amber-300/90"
+                          ? "text-amber-800 dark:text-amber-300/90"
                           : "text-red-400"
                       }`}
                     >
@@ -1187,11 +1133,7 @@ export default function HomePage() {
         {/* Result Area: Focused on Reels Video & MP3 Audio */}
         {data && (
           <section id="result-section" className="py-6 px-3 sm:px-6 max-w-4xl mx-auto scroll-mt-20 sm:scroll-mt-24">
-            <div className={`rounded-2xl border p-4 sm:p-6 md:p-7 transition-all ${
-              theme === "light"
-                ? "bg-white border-slate-200 shadow-sm"
-                : "bg-zinc-900/60 border-zinc-800 shadow-sm"
-            }`}>
+            <div className="rounded-2xl border p-4 sm:p-6 md:p-7 transition-all bg-white dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 shadow-xs">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-6 items-center">
                 {/* Left Column: Responsive Uncropped Media Player & Image Viewer */}
                 <div className="md:col-span-5 flex flex-col items-center justify-center w-full">
@@ -1229,11 +1171,7 @@ export default function HomePage() {
                 {/* Right Column: Media Details & Actions */}
                 <div className="md:col-span-7 flex flex-col justify-between space-y-3.5 sm:space-y-4">
                   {/* Creator Info & Detected Media Type */}
-                  <div
-                    className={`flex items-center justify-between pb-3 border-b gap-2 ${
-                      theme === "light" ? "border-slate-200" : "border-zinc-800/80"
-                    }`}
-                  >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800/80 gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full p-0.5 bg-ig-gradient flex items-center justify-center shrink-0">
                         <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center text-white font-bold text-xs sm:text-sm uppercase">
@@ -1270,11 +1208,7 @@ export default function HomePage() {
                       href={`https://www.instagram.com/p/${data.shortcode}/`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 ${
-                        theme === "light"
-                          ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                          : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60"
-                      }`}
+                      className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700/60"
                     >
                       <span>{t.result.openInIg}</span>
                       <ExternalLink className="w-3 h-3" />
@@ -1283,13 +1217,7 @@ export default function HomePage() {
 
                   {/* Caption Box */}
                   {data.caption && (
-                    <div
-                      className={`p-3 rounded-xl border text-left ${
-                        theme === "light"
-                          ? "bg-slate-50 border-slate-200"
-                          : "bg-zinc-950/40 border-zinc-800/80"
-                      }`}
-                    >
+                    <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/40 text-left">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10.5px] sm:text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-zinc-400 flex items-center gap-1">
                           <FileText className="w-3 h-3 text-zinc-500" />
@@ -1316,9 +1244,7 @@ export default function HomePage() {
                         </button>
                       </div>
                       <p
-                        className={`text-xs sm:text-sm font-normal leading-relaxed whitespace-pre-line ${
-                          theme === "light" ? "text-slate-700" : "text-zinc-300"
-                        } ${!isCaptionExpanded ? "line-clamp-3" : ""}`}
+                        className={`text-xs sm:text-sm font-normal leading-relaxed whitespace-pre-line text-slate-700 dark:text-zinc-300 ${!isCaptionExpanded ? "line-clamp-3" : ""}`}
                       >
                         {data.caption}
                       </p>
@@ -1336,51 +1262,21 @@ export default function HomePage() {
 
                   {/* Feature Highlights Pills */}
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-[10.5px] sm:text-[11px]">
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-medium border ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-700"
-                          : "bg-zinc-800/80 border-zinc-700/60 text-zinc-300"
-                      }`}
-                    >
+                    <span className="px-2 py-0.5 rounded-md font-medium border bg-slate-100 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300">
                       {t.result.badges.format}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-medium border ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-700"
-                          : "bg-zinc-800/80 border-zinc-700/60 text-zinc-300"
-                      }`}
-                    >
+                    <span className="px-2 py-0.5 rounded-md font-medium border bg-slate-100 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300">
                       {t.result.badges.resolution}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-medium border ${
-                        theme === "light"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                          : "bg-zinc-800/80 border-zinc-700/60 text-emerald-400"
-                      }`}
-                    >
+                    <span className="px-2 py-0.5 rounded-md font-medium border bg-emerald-50 dark:bg-zinc-800/80 border-emerald-200 dark:border-zinc-700/60 text-emerald-800 dark:text-emerald-400">
                       {t.result.badges.uncropped}
                     </span>
                     {isVideo && (
-                      <span
-                        className={`px-2 py-0.5 rounded-md font-medium border ${
-                          theme === "light"
-                            ? "bg-slate-100 border-slate-200 text-slate-700"
-                            : "bg-zinc-800/80 border-zinc-700/60 text-zinc-300"
-                        }`}
-                      >
+                      <span className="px-2 py-0.5 rounded-md font-medium border bg-slate-100 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300">
                         {t.result.badges.audio}
                       </span>
                     )}
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-medium border ${
-                        theme === "light"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                          : "bg-zinc-800/80 border-zinc-700/60 text-emerald-400"
-                      }`}
-                    >
+                    <span className="px-2 py-0.5 rounded-md font-medium border bg-emerald-50 dark:bg-zinc-800/80 border-emerald-200 dark:border-zinc-700/60 text-emerald-800 dark:text-emerald-400">
                       {t.result.badges.noWatermark}
                     </span>
                   </div>
@@ -1781,11 +1677,7 @@ export default function HomePage() {
 
       {/* Footer Area */}
       <footer
-        className={`border-t transition-colors ${
-          theme === "light"
-            ? "bg-slate-50 border-slate-200 text-slate-700"
-            : "bg-zinc-950 border-zinc-800/80 text-zinc-300"
-        }`}
+        className="border-t bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800/80 text-slate-700 dark:text-zinc-300"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-14">
           {/* 4 Column Grid */}
